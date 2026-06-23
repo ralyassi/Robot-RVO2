@@ -1,3 +1,22 @@
+Robot-RVO2 — a robot-aware fork of Python-RVO2
+==============================================
+
+**Robot-RVO2** is a fork of [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2)
+(upstream commit `c2c46ba`) that adds **per-(agent → robot) avoidance overrides**: one agent can be
+designated "the robot" (`setRobotAgent`), and every other agent then avoids it with its own berth,
+reciprocity share, time horizon, and visibility — or via a single behavior value `t ∈ [-1, 1]`
+(`setAgentRobotBehavior`: −1 = ignore the robot, 0 = stock reciprocal behavior, +1 = full avoidance
+responsibility + a radius-scaled berth). With no robot configured the library is **byte-identical to
+upstream**. The importable module is still `rvo2`.
+
+New API on `PyRVOSimulator`: `setRobotAgent`, `setAgentRobotPadding`, `setAgentRobotResponsibility`,
+`setAgentRobotTimeHorizon`, `setAgentSeesRobot`, and the convenience `setAgentRobotBehavior(agentNo, t)`.
+
+Fork-specific issues belong on this fork's tracker, **not** the upstream RVO2 / Python-RVO2 trackers
+referenced below. Licensed Apache-2.0, same as upstream; the original credits and license are preserved.
+
+---
+
 Python bindings for Optimal Reciprocal Collision Avoidance
 ==========================================================
 

@@ -70,6 +70,12 @@ cdef extern from "RVOSimulator.h" namespace "RVO":
         void setAgentPrefVelocity(size_t agentNo, const Vector2 & prefVelocity)
         void setAgentRadius(size_t agentNo, float radius)
         void setAgentTimeHorizon(size_t agentNo, float timeHorizon)
+        void setRobotAgent(int agentNo)
+        void setAgentRobotPadding(size_t agentNo, float padding)
+        void setAgentRobotResponsibility(size_t agentNo, float responsibility)
+        void setAgentRobotTimeHorizon(size_t agentNo, float timeHorizon)
+        void setAgentSeesRobot(size_t agentNo, bool seesRobot)
+        void setAgentRobotBehavior(size_t agentNo, float t)
         void setAgentTimeHorizonObst(size_t agentNo, float timeHorizonObst)
         void setAgentVelocity(size_t agentNo, const Vector2 & velocity)
         void setTimeStep(float timeStep)
@@ -218,6 +224,18 @@ cdef class PyRVOSimulator:
         self.thisptr.setAgentRadius(agent_no, radius)
     def setAgentTimeHorizon(self, size_t agent_no, float time_horizon):
         self.thisptr.setAgentTimeHorizon(agent_no, time_horizon)
+    def setRobotAgent(self, int agent_no):
+        self.thisptr.setRobotAgent(agent_no)
+    def setAgentRobotPadding(self, size_t agent_no, float padding):
+        self.thisptr.setAgentRobotPadding(agent_no, padding)
+    def setAgentRobotResponsibility(self, size_t agent_no, float responsibility):
+        self.thisptr.setAgentRobotResponsibility(agent_no, responsibility)
+    def setAgentRobotTimeHorizon(self, size_t agent_no, float time_horizon):
+        self.thisptr.setAgentRobotTimeHorizon(agent_no, time_horizon)
+    def setAgentSeesRobot(self, size_t agent_no, bool sees_robot):
+        self.thisptr.setAgentSeesRobot(agent_no, sees_robot)
+    def setAgentRobotBehavior(self, size_t agent_no, float t):
+        self.thisptr.setAgentRobotBehavior(agent_no, t)
     def setAgentTimeHorizonObst(self, size_t agent_no, float timeHorizonObst):
         self.thisptr.setAgentTimeHorizonObst(agent_no, timeHorizonObst)
     def setAgentVelocity(self, size_t agent_no, tuple velocity):

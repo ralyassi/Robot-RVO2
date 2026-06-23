@@ -36,7 +36,7 @@
 #include "Obstacle.h"
 
 namespace RVO {
-	Agent::Agent(RVOSimulator *sim) : maxNeighbors_(0), maxSpeed_(0.0f), neighborDist_(0.0f), radius_(0.0f), sim_(sim), timeHorizon_(0.0f), timeHorizonObst_(0.0f), id_(0) { }
+	Agent::Agent(RVOSimulator *sim) : maxNeighbors_(0), maxSpeed_(0.0f), neighborDist_(0.0f), radius_(0.0f), sim_(sim), timeHorizon_(0.0f), timeHorizonObst_(0.0f), id_(0), robotPadding_(0.0f), robotResponsibility_(0.5f), robotTimeHorizon_(-1.0f), robotTimeHorizonScale_(0.0f), seesRobot_(true) { }
 
 	void Agent::computeNeighbors()
 	{
@@ -289,10 +289,25 @@ namespace RVO {
 		for (size_t i = 0; i < agentNeighbors_.size(); ++i) {
 			const Agent *const other = agentNeighbors_[i].second;
 
+			/* Robot-RVO2 fork: per-(this->robot) overrides. No-op unless this sim has a robot
+			 * configured (robotAgentNo_ >= 0) AND this neighbour is it; otherwise reduces to stock. */
+			const bool isRobot = (sim_->robotAgentNo_ >= 0) &&
+			                     (static_cast<int>(other->id_) == sim_->robotAgentNo_);
+			if (isRobot && !seesRobot_) {
+				continue;  /* t = invisible: this human ignores the robot entirely. */
+			}
+			const float robotPad = isRobot ? robotPadding_ : 0.0f;
+			/* robot horizon: a live SCALE (setAgentRobotBehavior) takes precedence over an ABSOLUTE
+			 * override (raw setter); either reduces to the agent's own invTimeHorizon when unused. */
+			float robotTH = robotTimeHorizon_;
+			if (isRobot && robotTimeHorizonScale_ > 0.0f) { robotTH = timeHorizon_ * robotTimeHorizonScale_; }
+			const float nbrInvTimeHorizon = (isRobot && robotTH > 0.0f) ? (1.0f / robotTH) : invTimeHorizon;
+			const float responsibility = isRobot ? robotResponsibility_ : 0.5f;
+
 			const Vector2 relativePosition = other->position_ - position_;
 			const Vector2 relativeVelocity = velocity_ - other->velocity_;
 			const float distSq = absSq(relativePosition);
-			const float combinedRadius = radius_ + other->radius_;
+			const float combinedRadius = radius_ + other->radius_ + robotPad;
 			const float combinedRadiusSq = sqr(combinedRadius);
 
 			Line line;
@@ -300,7 +315,7 @@ namespace RVO {
 
 			if (distSq > combinedRadiusSq) {
 				/* No collision. */
-				const Vector2 w = relativeVelocity - invTimeHorizon * relativePosition;
+				const Vector2 w = relativeVelocity - nbrInvTimeHorizon * relativePosition;
 				/* Vector from cutoff center to relative velocity. */
 				const float wLengthSq = absSq(w);
 
@@ -312,7 +327,7 @@ namespace RVO {
 					const Vector2 unitW = w / wLength;
 
 					line.direction = Vector2(unitW.y(), -unitW.x());
-					u = (combinedRadius * invTimeHorizon - wLength) * unitW;
+					u = (combinedRadius * nbrInvTimeHorizon - wLength) * unitW;
 				}
 				else {
 					/* Project on legs. */
@@ -346,7 +361,7 @@ namespace RVO {
 				u = (combinedRadius * invTimeStep - wLength) * unitW;
 			}
 
-			line.point = velocity_ + 0.5f * u;
+			line.point = velocity_ + responsibility * u;
 			orcaLines_.push_back(line);
 		}
 

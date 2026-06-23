@@ -41,12 +41,12 @@
 #endif
 
 namespace RVO {
-	RVOSimulator::RVOSimulator() : defaultAgent_(NULL), globalTime_(0.0f), kdTree_(NULL), timeStep_(0.0f)
+	RVOSimulator::RVOSimulator() : defaultAgent_(NULL), globalTime_(0.0f), kdTree_(NULL), timeStep_(0.0f), robotAgentNo_(-1)
 	{
 		kdTree_ = new KdTree(this);
 	}
 
-	RVOSimulator::RVOSimulator(float timeStep, float neighborDist, size_t maxNeighbors, float timeHorizon, float timeHorizonObst, float radius, float maxSpeed, const Vector2 &velocity) : defaultAgent_(NULL), globalTime_(0.0f), kdTree_(NULL), timeStep_(timeStep)
+	RVOSimulator::RVOSimulator(float timeStep, float neighborDist, size_t maxNeighbors, float timeHorizon, float timeHorizonObst, float radius, float maxSpeed, const Vector2 &velocity) : defaultAgent_(NULL), globalTime_(0.0f), kdTree_(NULL), timeStep_(timeStep), robotAgentNo_(-1)
 	{
 		kdTree_ = new KdTree(this);
 		defaultAgent_ = new Agent(this);
@@ -93,6 +93,11 @@ namespace RVO {
 		agent->timeHorizon_ = defaultAgent_->timeHorizon_;
 		agent->timeHorizonObst_ = defaultAgent_->timeHorizonObst_;
 		agent->velocity_ = defaultAgent_->velocity_;
+		agent->robotPadding_ = defaultAgent_->robotPadding_;
+		agent->robotResponsibility_ = defaultAgent_->robotResponsibility_;
+		agent->robotTimeHorizon_ = defaultAgent_->robotTimeHorizon_;
+		agent->robotTimeHorizonScale_ = defaultAgent_->robotTimeHorizonScale_;
+		agent->seesRobot_ = defaultAgent_->seesRobot_;
 
 		agent->id_ = agents_.size();
 
@@ -113,6 +118,11 @@ namespace RVO {
 		agent->timeHorizon_ = timeHorizon;
 		agent->timeHorizonObst_ = timeHorizonObst;
 		agent->velocity_ = velocity;
+		agent->robotPadding_ = 0.0f;
+		agent->robotResponsibility_ = 0.5f;
+		agent->robotTimeHorizon_ = -1.0f;
+		agent->robotTimeHorizonScale_ = 0.0f;
+		agent->seesRobot_ = true;
 
 		agent->id_ = agents_.size();
 
@@ -350,6 +360,55 @@ namespace RVO {
 	void RVOSimulator::setAgentTimeHorizon(size_t agentNo, float timeHorizon)
 	{
 		agents_[agentNo]->timeHorizon_ = timeHorizon;
+	}
+
+	/* --- Robot-RVO2 fork: per-(agent->robot) avoidance overrides + the robot's agent index. --- */
+	void RVOSimulator::setRobotAgent(int agentNo)
+	{
+		robotAgentNo_ = agentNo;
+	}
+
+	void RVOSimulator::setAgentRobotPadding(size_t agentNo, float padding)
+	{
+		agents_[agentNo]->robotPadding_ = padding;
+	}
+
+	void RVOSimulator::setAgentRobotResponsibility(size_t agentNo, float responsibility)
+	{
+		agents_[agentNo]->robotResponsibility_ = responsibility;
+	}
+
+	void RVOSimulator::setAgentRobotTimeHorizon(size_t agentNo, float timeHorizon)
+	{
+		agents_[agentNo]->robotTimeHorizon_ = timeHorizon;
+		agents_[agentNo]->robotTimeHorizonScale_ = 0.0f;  /* absolute override wins over any convenience scale */
+	}
+
+	void RVOSimulator::setAgentSeesRobot(size_t agentNo, bool seesRobot)
+	{
+		agents_[agentNo]->seesRobot_ = seesRobot;
+	}
+
+	/* Convenience: one behavior value t in [-1,1] -> all four robot knobs (closed-form, no tuning).
+	 * t=-1 invisible; responsibility 0.5*(1+t) (0 at -1, 0.5 at 0=reciprocal, 1 at +1=full ownership);
+	 * berth padding 0.5*robotRadius*max(t,0); robot time horizon scaled by (1+max(t,0)). t=0 is stock. */
+	void RVOSimulator::setAgentRobotBehavior(size_t agentNo, float t)
+	{
+		if (t < -1.0f) { t = -1.0f; }
+		if (t >  1.0f) { t =  1.0f; }
+		const float tPos = (t > 0.0f) ? t : 0.0f;
+		/* robotAgentNo_ is set via setRobotAgent() and could be stale/out of range -> bounds-check the deref. */
+		const float robotRadius =
+			(robotAgentNo_ >= 0 && static_cast<size_t>(robotAgentNo_) < agents_.size())
+			? agents_[robotAgentNo_]->radius_ : 0.0f;
+		Agent *agent = agents_[agentNo];
+		agent->seesRobot_ = (t > -1.0f);                       /* exactly -1 => ignore the robot */
+		agent->robotResponsibility_ = 0.5f * (1.0f + t);
+		agent->robotPadding_ = 0.5f * robotRadius * tPos;      /* ROBOT_RADIUS_INFLATE = 0.5 (positive side) */
+		/* Store a horizon SCALE (not an absolute) so the robot neighbour always tracks the agent's LIVE
+		 * timeHorizon_ -> robust to a later setAgentTimeHorizon. scale<=0 (t<=0) => use timeHorizon_ as-is. */
+		agent->robotTimeHorizon_ = -1.0f;
+		agent->robotTimeHorizonScale_ = (tPos > 0.0f) ? (1.0f + tPos) : 0.0f;
 	}
 
 	void RVOSimulator::setAgentTimeHorizonObst(size_t agentNo, float timeHorizonObst)

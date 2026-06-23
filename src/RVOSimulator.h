@@ -547,6 +547,14 @@ namespace RVO {
 		 */
 		void setAgentTimeHorizon(size_t agentNo, float timeHorizon);
 
+		/* --- Robot-RVO2 fork: per-(agent->robot) avoidance overrides + the robot's agent index. --- */
+		void setRobotAgent(int agentNo);                                      /* -1 disables. */
+		void setAgentRobotPadding(size_t agentNo, float padding);
+		void setAgentRobotResponsibility(size_t agentNo, float responsibility);
+		void setAgentRobotTimeHorizon(size_t agentNo, float timeHorizon);     /* <= 0 => use timeHorizon_. */
+		void setAgentSeesRobot(size_t agentNo, bool seesRobot);
+		void setAgentRobotBehavior(size_t agentNo, float t);                  /* convenience: t in [-1,1] -> the 4 knobs above. */
+
 		/**
 		 * \brief      Sets the time horizon of a specified agent with respect
 		 *             to obstacles.
@@ -582,6 +590,7 @@ namespace RVO {
 		KdTree *kdTree_;
 		std::vector<Obstacle *> obstacles_;
 		float timeStep_;
+		int robotAgentNo_;  /* Robot-RVO2 fork: id_ of the robot agent, or -1 (none configured). */
 
 		friend class Agent;
 		friend class KdTree;

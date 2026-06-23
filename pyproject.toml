@@ -1,0 +1,5 @@
+# Robot-RVO2 fork of Python-RVO2. Declares the build backend so modern pip can build
+# the Cython/C++ extension (the importable module stays `rvo2`).
+[build-system]
+requires = ["setuptools>=64", "wheel", "Cython>=0.29"]
+build-backend = "setuptools.build_meta"

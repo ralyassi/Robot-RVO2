@@ -103,6 +103,13 @@ namespace RVO {
 
 		size_t id_;
 
+		// --- Robot-RVO2 fork: per-(this agent -> robot) avoidance overrides ---
+		float robotPadding_;        // extra berth added to combinedRadius vs the robot only
+		float robotResponsibility_; // reciprocal share vs the robot (replaces the 0.5f split)
+		float robotTimeHorizon_;    // per-(this->robot) ABSOLUTE horizon override (raw setter); <= 0 => unused
+		float robotTimeHorizonScale_; // per-(this->robot) horizon SCALE -> timeHorizon_*scale (live); <= 0 => unused
+		bool  seesRobot_;           // false => skip the robot neighbor entirely (t = invisible)
+
 		friend class KdTree;
 		friend class RVOSimulator;
 	};

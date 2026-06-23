@@ -31,7 +31,7 @@ extensions = [
 ]
 
 setup(
-    name="pyrvo2",
+    name="robot-rvo2",  # Robot-RVO2 fork of Python-RVO2; importable module stays `rvo2`
     ext_modules=cythonize(extensions),
     cmdclass={'build_ext': BuildRvo2Ext},
     classifiers=[
