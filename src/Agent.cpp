@@ -32,11 +32,13 @@
 
 #include "Agent.h"
 
+#include <algorithm>
+
 #include "KdTree.h"
 #include "Obstacle.h"
 
 namespace RVO {
-	Agent::Agent(RVOSimulator *sim) : maxNeighbors_(0), maxSpeed_(0.0f), neighborDist_(0.0f), radius_(0.0f), sim_(sim), timeHorizon_(0.0f), timeHorizonObst_(0.0f), id_(0), robotPadding_(0.0f), robotResponsibility_(0.5f), robotTimeHorizon_(-1.0f), robotTimeHorizonScale_(0.0f), seesRobot_(true) { }
+	Agent::Agent(RVOSimulator *sim) : maxNeighbors_(0), maxSpeed_(0.0f), neighborDist_(0.0f), radius_(0.0f), sim_(sim), timeHorizon_(0.0f), timeHorizonObst_(0.0f), id_(0), robotPadding_(0.0f), robotResponsibility_(0.5f), robotTimeHorizon_(-1.0f), robotTimeHorizonScale_(0.0f), seesRobot_(true), comfortBuffer_(0.0f), groupId_(-1), robotOwnSlot_(false), robotKeepsCourse_(false), robotVelocityScale_(1.0f) { }
 
 	void Agent::computeNeighbors()
 	{
@@ -49,6 +51,14 @@ namespace RVO {
 		if (maxNeighbors_ > 0) {
 			rangeSq = sqr(neighborDist_);
 			sim_->kdTree_->computeAgentNeighbors(this, rangeSq);
+		}
+		/* Robot-RVO2 fork: the noticed robot in its own slot, whatever maxNeighbors_ people are closer. */
+		const int r = sim_->robotAgentNo_;
+		if (robotOwnSlot_ && seesRobot_ && r >= 0 && static_cast<size_t>(r) < sim_->agents_.size() && sim_->agents_[r] != this) {
+			const float distSq = absSq(position_ - sim_->agents_[r]->position_);
+			if (distSq < sqr(neighborDist_)) {
+				agentNeighbors_.push_back(std::make_pair(distSq, sim_->agents_[r]));
+			}
 		}
 	}
 
@@ -302,12 +312,20 @@ namespace RVO {
 			float robotTH = robotTimeHorizon_;
 			if (isRobot && robotTimeHorizonScale_ > 0.0f) { robotTH = timeHorizon_ * robotTimeHorizonScale_; }
 			const float nbrInvTimeHorizon = (isRobot && robotTH > 0.0f) ? (1.0f / robotTH) : invTimeHorizon;
-			const float responsibility = isRobot ? robotResponsibility_ : 0.5f;
+			const bool sole = !isRobot && !soleAgents_.empty() &&
+			                  std::find(soleAgents_.begin(), soleAgents_.end(), other->id_) != soleAgents_.end();
+			const float responsibility = isRobot ? robotResponsibility_ : (sole ? 1.0f : 0.5f);
 
 			const Vector2 relativePosition = other->position_ - position_;
-			const Vector2 relativeVelocity = velocity_ - other->velocity_;
+			/* Robot-RVO2 fork: the robot at the speed this agent expects (robotVelocityScale_); with robotKeepsCourse_
+			 * along its preferred velocity (its course), whatever the robot agent's own ORCA step made of it. */
+			const Vector2 robotVel = robotKeepsCourse_ ? other->prefVelocity_ : other->velocity_;
+			const Vector2 relativeVelocity = velocity_ - (isRobot ? robotVelocityScale_ * robotVel : other->velocity_);
 			const float distSq = absSq(relativePosition);
-			const float combinedRadius = radius_ + other->radius_ + robotPad;
+			/* Robot-RVO2 fork: group members keep no personal space from each other (comfortBuffer_). */
+			const bool sameGroup = !isRobot && groupId_ >= 0 && groupId_ == other->groupId_;
+			const float combinedRadius = radius_ + other->radius_ + robotPad -
+			                             (sameGroup ? comfortBuffer_ + other->comfortBuffer_ : 0.0f);
 			const float combinedRadiusSq = sqr(combinedRadius);
 
 			Line line;
@@ -375,6 +393,14 @@ namespace RVO {
 	void Agent::insertAgentNeighbor(const Agent *agent, float &rangeSq)
 	{
 		if (this != agent) {
+			/* Robot-RVO2 fork: an agent this one has not noticed does not take a neighbour slot. */
+			if (!unseenAgents_.empty() && std::find(unseenAgents_.begin(), unseenAgents_.end(), agent->id_) != unseenAgents_.end()) {
+				return;
+			}
+			/* Nor does a robot it ignores (seesRobot_ false: not noticed yet, or t = -1), nor one in its own slot. */
+			if ((!seesRobot_ || robotOwnSlot_) && sim_->robotAgentNo_ >= 0 && static_cast<int>(agent->id_) == sim_->robotAgentNo_) {
+				return;
+			}
 			const float distSq = absSq(position_ - agent->position_);
 
 			if (distSq < rangeSq) {

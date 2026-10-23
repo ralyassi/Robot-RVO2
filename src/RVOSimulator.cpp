@@ -389,6 +389,41 @@ namespace RVO {
 		agents_[agentNo]->seesRobot_ = seesRobot;
 	}
 
+	void RVOSimulator::setAgentRobotVelocityScale(size_t agentNo, float scale)
+	{
+		agents_[agentNo]->robotVelocityScale_ = scale;
+	}
+
+	void RVOSimulator::setAgentRobotKeepsCourse(size_t agentNo, bool keepsCourse)
+	{
+		agents_[agentNo]->robotKeepsCourse_ = keepsCourse;
+	}
+
+	void RVOSimulator::setAgentRobotOwnSlot(size_t agentNo, bool ownSlot)
+	{
+		agents_[agentNo]->robotOwnSlot_ = ownSlot;
+	}
+
+	void RVOSimulator::setAgentComfortBuffer(size_t agentNo, float buffer)
+	{
+		agents_[agentNo]->comfortBuffer_ = buffer;
+	}
+
+	void RVOSimulator::setAgentGroup(size_t agentNo, int groupId)
+	{
+		agents_[agentNo]->groupId_ = groupId;
+	}
+
+	void RVOSimulator::setAgentUnseenAgents(size_t agentNo, const std::vector<size_t> &agentNos)
+	{
+		agents_[agentNo]->unseenAgents_ = agentNos;
+	}
+
+	void RVOSimulator::setAgentSoleAgents(size_t agentNo, const std::vector<size_t> &agentNos)
+	{
+		agents_[agentNo]->soleAgents_ = agentNos;
+	}
+
 	/* Convenience: one behavior value t in [-1,1] -> all four robot knobs (closed-form, no tuning).
 	 * t=-1 invisible; responsibility 0.5*(1+t) (0 at -1, 0.5 at 0=reciprocal, 1 at +1=full ownership);
 	 * berth padding 0.5*robotRadius*max(t,0); robot time horizon scaled by (1+max(t,0)). t=0 is stock. */

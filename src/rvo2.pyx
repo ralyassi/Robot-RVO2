@@ -75,6 +75,13 @@ cdef extern from "RVOSimulator.h" namespace "RVO":
         void setAgentRobotResponsibility(size_t agentNo, float responsibility)
         void setAgentRobotTimeHorizon(size_t agentNo, float timeHorizon)
         void setAgentSeesRobot(size_t agentNo, bool seesRobot)
+        void setAgentRobotVelocityScale(size_t agentNo, float scale)
+        void setAgentRobotKeepsCourse(size_t agentNo, bool keepsCourse)
+        void setAgentRobotOwnSlot(size_t agentNo, bool ownSlot)
+        void setAgentComfortBuffer(size_t agentNo, float buffer)
+        void setAgentGroup(size_t agentNo, int groupId)
+        void setAgentUnseenAgents(size_t agentNo, const vector[size_t] & agentNos)
+        void setAgentSoleAgents(size_t agentNo, const vector[size_t] & agentNos)
         void setAgentRobotBehavior(size_t agentNo, float t)
         void setAgentTimeHorizonObst(size_t agentNo, float timeHorizonObst)
         void setAgentVelocity(size_t agentNo, const Vector2 & velocity)
@@ -234,6 +241,22 @@ cdef class PyRVOSimulator:
         self.thisptr.setAgentRobotTimeHorizon(agent_no, time_horizon)
     def setAgentSeesRobot(self, size_t agent_no, bool sees_robot):
         self.thisptr.setAgentSeesRobot(agent_no, sees_robot)
+    def setAgentRobotVelocityScale(self, size_t agent_no, float scale):
+        self.thisptr.setAgentRobotVelocityScale(agent_no, scale)
+    def setAgentRobotKeepsCourse(self, size_t agent_no, bint keeps_course):
+        self.thisptr.setAgentRobotKeepsCourse(agent_no, keeps_course)
+    def setAgentRobotOwnSlot(self, size_t agent_no, bint own_slot):
+        self.thisptr.setAgentRobotOwnSlot(agent_no, own_slot)
+    def setAgentComfortBuffer(self, size_t agent_no, float buffer):
+        self.thisptr.setAgentComfortBuffer(agent_no, buffer)
+    def setAgentGroup(self, size_t agent_no, int group_id):
+        self.thisptr.setAgentGroup(agent_no, group_id)
+    def setAgentUnseenAgents(self, size_t agent_no, agent_nos):
+        cdef vector[size_t] ids = agent_nos
+        self.thisptr.setAgentUnseenAgents(agent_no, ids)
+    def setAgentSoleAgents(self, size_t agent_no, agent_nos):
+        cdef vector[size_t] ids = agent_nos
+        self.thisptr.setAgentSoleAgents(agent_no, ids)
     def setAgentRobotBehavior(self, size_t agent_no, float t):
         self.thisptr.setAgentRobotBehavior(agent_no, t)
     def setAgentTimeHorizonObst(self, size_t agent_no, float timeHorizonObst):
@@ -243,3 +266,60 @@ cdef class PyRVOSimulator:
         self.thisptr.setAgentVelocity(agent_no, c_velocity)
     def setTimeStep(self, float time_step):
         self.thisptr.setTimeStep(time_step)
+
+    # --- Robot-RVO2 fork: batch setters/getters for agents 0..n-1 (one call per simulator instead of one per agent;
+    # the same float32 values reach the same C++ setters, so results are identical to the per-agent calls) ---
+    def setAgentsState(self, float[:, ::1] position, float[:, ::1] velocity, float[:, ::1] pref_velocity):
+        cdef Py_ssize_t i
+        for i in range(position.shape[0]):
+            self.thisptr.setAgentPosition(i, Vector2(position[i, 0], position[i, 1]))
+            self.thisptr.setAgentVelocity(i, Vector2(velocity[i, 0], velocity[i, 1]))
+            self.thisptr.setAgentPrefVelocity(i, Vector2(pref_velocity[i, 0], pref_velocity[i, 1]))
+    def setAgentsRadius(self, float[::1] radius):
+        cdef Py_ssize_t i
+        for i in range(radius.shape[0]):
+            self.thisptr.setAgentRadius(i, radius[i])
+    def setAgentsComfortBuffer(self, float[::1] buffer, int[::1] group_id):
+        cdef Py_ssize_t i
+        for i in range(buffer.shape[0]):
+            self.thisptr.setAgentComfortBuffer(i, buffer[i])
+            self.thisptr.setAgentGroup(i, group_id[i])
+    def setAgentsTimeHorizon(self, float[::1] time_horizon):
+        cdef Py_ssize_t i
+        for i in range(time_horizon.shape[0]):
+            self.thisptr.setAgentTimeHorizon(i, time_horizon[i])
+    def setAgentsMaxNeighbors(self, int[::1] max_neighbors):
+        cdef Py_ssize_t i
+        for i in range(max_neighbors.shape[0]):
+            self.thisptr.setAgentMaxNeighbors(i, max_neighbors[i])
+    def setAgentsRobotResponsibility(self, float[::1] responsibility):
+        cdef Py_ssize_t i
+        for i in range(responsibility.shape[0]):
+            self.thisptr.setAgentRobotResponsibility(i, responsibility[i])
+    def setAgentsRobotPerception(self, unsigned char[::1] sees_robot, unsigned char[::1] keeps_course):
+        cdef Py_ssize_t i
+        for i in range(sees_robot.shape[0]):
+            self.thisptr.setAgentSeesRobot(i, sees_robot[i] != 0)
+            self.thisptr.setAgentRobotKeepsCourse(i, keeps_course[i] != 0)
+    def setAgentsPeoplePerception(self, unsigned char[:, ::1] sees):
+        """sees[i, j]: agent i has noticed agent j (diagonal ignored) -> unseen / sole lists as setAgentUnseenAgents /
+        setAgentSoleAgents, in ascending order."""
+        cdef Py_ssize_t i, j, n = sees.shape[0]
+        cdef vector[size_t] unseen, sole
+        for i in range(n):
+            unseen.clear(); sole.clear()
+            for j in range(n):
+                if i == j:
+                    continue
+                if sees[i, j] == 0:
+                    unseen.push_back(j)
+                elif sees[j, i] == 0:
+                    sole.push_back(j)
+            self.thisptr.setAgentUnseenAgents(i, unseen)
+            self.thisptr.setAgentSoleAgents(i, sole)
+    def getAgentsVelocity(self, float[:, ::1] out):
+        cdef Py_ssize_t i
+        cdef Vector2 v
+        for i in range(out.shape[0]):
+            v = self.thisptr.getAgentVelocity(i)
+            out[i, 0] = v.x(); out[i, 1] = v.y()

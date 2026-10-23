@@ -553,6 +553,13 @@ namespace RVO {
 		void setAgentRobotResponsibility(size_t agentNo, float responsibility);
 		void setAgentRobotTimeHorizon(size_t agentNo, float timeHorizon);     /* <= 0 => use timeHorizon_. */
 		void setAgentSeesRobot(size_t agentNo, bool seesRobot);
+		void setAgentRobotVelocityScale(size_t agentNo, float scale);   /* expected robot speed / its current speed */
+		void setAgentRobotKeepsCourse(size_t agentNo, bool keepsCourse); /* expects the robot not to dodge it */
+		void setAgentRobotOwnSlot(size_t agentNo, bool ownSlot);        /* robot avoided on top of maxNeighbors */
+		void setAgentComfortBuffer(size_t agentNo, float buffer);       /* personal-space part of the radius */
+		void setAgentGroup(size_t agentNo, int groupId);                /* same group: no comfort buffer between them */
+		void setAgentUnseenAgents(size_t agentNo, const std::vector<size_t> &agentNos);  /* not noticed: ignored as neighbours */
+		void setAgentSoleAgents(size_t agentNo, const std::vector<size_t> &agentNos);    /* have not noticed it: responsibility 1 */
 		void setAgentRobotBehavior(size_t agentNo, float t);                  /* convenience: t in [-1,1] -> the 4 knobs above. */
 
 		/**

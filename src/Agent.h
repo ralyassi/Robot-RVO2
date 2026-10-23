@@ -109,6 +109,14 @@ namespace RVO {
 		float robotTimeHorizon_;    // per-(this->robot) ABSOLUTE horizon override (raw setter); <= 0 => unused
 		float robotTimeHorizonScale_; // per-(this->robot) horizon SCALE -> timeHorizon_*scale (live); <= 0 => unused
 		bool  seesRobot_;           // false => skip the robot neighbor entirely (t = invisible)
+		float comfortBuffer_;       // part of radius_ that is personal space (dropped toward agents of the same group)
+		int groupId_;               // walking group (-1 = none): group members keep only their body distance to each other
+		bool robotOwnSlot_;         // the robot (once noticed) is avoided on top of maxNeighbors_, never pushed out by people
+		bool robotKeepsCourse_;     // this agent expects the robot to keep its course: its preferred velocity, not its ORCA dodge
+		float robotVelocityScale_;  // this agent's guess of the robot's speed: its current velocity times this (1 = exact)
+		// --- per-(this agent -> other agent) perception ---
+		std::vector<size_t> unseenAgents_;  // ids this agent has not noticed: not taken as neighbours at all
+		std::vector<size_t> soleAgents_;    // ids that have not noticed this agent: it takes the whole avoidance (responsibility 1)
 
 		friend class KdTree;
 		friend class RVOSimulator;
