@@ -296,6 +296,17 @@ cdef class PyRVOSimulator:
         cdef Py_ssize_t i
         for i in range(responsibility.shape[0]):
             self.thisptr.setAgentRobotResponsibility(i, responsibility[i])
+    def setAgentsRobotVelocityScale(self, float[::1] scale):
+        cdef Py_ssize_t i
+        for i in range(scale.shape[0]):
+            self.thisptr.setAgentRobotVelocityScale(i, scale[i])
+    def setAgentsRobotSpace(self, float[::1] padding, float[::1] time_horizon):
+        """Per agent: berth toward the robot (setAgentRobotPadding, may be negative) and the absolute look-ahead toward
+        it (setAgentRobotTimeHorizon, replaces the scale of setAgentRobotBehavior)."""
+        cdef Py_ssize_t i
+        for i in range(padding.shape[0]):
+            self.thisptr.setAgentRobotPadding(i, padding[i])
+            self.thisptr.setAgentRobotTimeHorizon(i, time_horizon[i])
     def setAgentsRobotPerception(self, unsigned char[::1] sees_robot, unsigned char[::1] keeps_course):
         cdef Py_ssize_t i
         for i in range(sees_robot.shape[0]):
